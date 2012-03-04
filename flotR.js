@@ -143,8 +143,7 @@
     name = str.replace(/^\s+/, '').replace(/\s+$/, '').toLowerCase();
     if (name == 'transparent') {
       return c(255, 255, 255, 0);
-    }
-    else {
+    } else {
       res = Color.LookupColors[name];
       return c(res[0], res[1], res[2]);
     }
@@ -230,26 +229,36 @@
     return axes[number];
   }
 
-  function onHoverIn () {
+  function onHoverIn() {
     var
-      strokeStyle = Color.parse(this.attrs.stroke).scale('a', 0.5).toString(),
-      fillStyle = Color.parse(this.attrs.fill).scale('a', 0.5).toString();
-
-    this.attr({
-      stroke: strokeStyle,
-      fill: fillStyle
-    });
+      set = this.data('set'),
+      fill,
+      si, sl, e;
+    for (si = 0, sl = set.length; si < sl; si++) {
+      e = set[si];
+      fill = e.attrs.fill;
+      if (fill && fill !== 'none') {
+        e.attr({fill: Color.parse(fill).scale('a', 0.5).toString()});
+      }
+    }
   }
 
-  function onHoverOut () {
+  function onHoverOut() {
     var
-      strokeStyle = Color.parse(this.attrs.stroke).scale('a', 2).toString(),
-      fillStyle = Color.parse(this.attrs.fill).scale('a', 2).toString();
+      set = this.data('set'),
+      fill,
+      si, sl, e;
+    for (si = 0, sl = set.length; si < sl; si++) {
+      e = set[si];
+      fill = e.attrs.fill;
+      if (fill && fill !== 'none') {
+        e.attr({fill: Color.parse(fill).scale('a', 2).toString()});
+      }
+    }
+ }
 
-    this.attr({
-      stroke: strokeStyle,
-      fill: fillStyle
-    });
+  function onClick() {
+    console.debug(this);
   }
 
   /**
@@ -2092,7 +2101,8 @@
     var
       left, right, bottom, top,
       drawLeft, drawRight, drawTop, drawBottom,
-      path,
+      path, set,
+      hover,
       tmp;
 
     // In horizontal mode, we start the bar from the left instead of from the bottom so it appears to be
@@ -2158,7 +2168,7 @@
     right = axisX.p2c(right);
     top = axisY.p2c(top);
 
-    //TODO: Replace with set to handle hover
+    plotr.canvas.setStart();
 
     // Fill the bar
     if (fillStyle) {
@@ -2171,8 +2181,7 @@
       plotr.canvas
         .path(path.join(''))
         .transform(transform)
-        .attr({fill: fillStyle})
-        .hover(onHoverIn, onHoverOut);
+        .attr({fill: fillStyle});
     }
 
     // draw outline
@@ -2189,6 +2198,27 @@
         .path(path.join(''))
         .transform(transform)
         .attr(strokeStyle);
+    }
+
+    set = plotr.canvas.setFinish();
+
+    if (plotr.options.grid.hoverable) {
+      hover = plotr.canvas.rect(
+        left - (drawLeft ? lineWidth/2 : 0),
+        top - (drawTop ? lineWidth/2 : 0),
+        right - left + (drawRight || drawLeft ? lineWidth : 0),
+        bottom - top + (drawBottom || drawTop ? lineWidth : 0)
+      );
+
+      hover
+        .transform(transform)
+        .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
+        .data('set', set)
+        .hover(onHoverIn, onHoverOut)
+        .click(onClick);
+
+      strokeStyle && hover.data('stroke', strokeStyle.stroke);
+      fillStyle && hover.data('fill', fillStyle);
     }
   }
 
