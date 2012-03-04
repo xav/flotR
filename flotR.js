@@ -2620,8 +2620,8 @@
       executeHooks(this, this.hooks.draw, [canvas]);
 
       if (grid.show && grid.aboveData) {
-        drawGrid();
-        //drawAxisLabels();
+        drawGrid(this);
+        drawAxisLabels(this);
       }
     },
 
