@@ -237,6 +237,7 @@
       pos,
       series,
       dataPoints,
+      pointSize,
       pi, pl, point,
       item = null;
 
@@ -247,7 +248,8 @@
     if (data) {
       series = plotr.series[data.seriesIndex];
       dataPoints = series.datapoints;
-      point = [];
+      pointSize = dataPoints.pointsize;
+      point = series.datapoints.points.slice(pointSize * data.dataIndex, pointSize * (data.dataIndex + 1));
       for (pi = data.dataIndex * dataPoints.pointsize, pl = pi + dataPoints.pointsize; pi < pl; pi++) {
         point.push(dataPoints.points[pi]);
       }
@@ -275,38 +277,52 @@
       set = this.data('set'),
       fill,
       si, sl, e;
-    for (si = 0, sl = set.length; si < sl; si++) {
-      e = set[si];
-      fill = e.attrs.fill;
-      if (fill && fill !== 'none') {
-        e.attr({fill: Color.parse(fill).scale('a', 0.5).toString()});
+    if (!set.hover) {
+      set.hover = true;
+      for (si = 0, sl = set.length; si < sl; si++) {
+        e = set[si];
+        fill = e.attrs.fill;
+        if (fill && fill !== 'none') {
+          e.attr({fill: Color.parse(fill).scale('a', 0.5).toString()});
+        }
       }
     }
   }
 
   function onBarHoverOut() {
     var
+      highlight = this.data('highlight'),
       set = this.data('set'),
       fill,
       si, sl, e;
-    for (si = 0, sl = set.length; si < sl; si++) {
-      e = set[si];
-      fill = e.attrs.fill;
-      if (fill && fill !== 'none') {
-        e.attr({fill: Color.parse(fill).scale('a', 2).toString()});
+
+    if (!highlight && set.hover) {
+      set.hover = false;
+      for (si = 0, sl = set.length; si < sl; si++) {
+        e = set[si];
+        fill = e.attrs.fill;
+        if (fill && fill !== 'none') {
+          e.attr({fill: Color.parse(fill).scale('a', 2).toString()});
+        }
       }
     }
  }
 
   function onPointHoverIn() {
-    var set = this.data('set');
-    this.data('glow', set.glow({color: set.attrs.stroke, opacity: 0.7}));
+    var
+      set = this.data('set'),
+      glow = this.data('glow')
+    !glow &&  this.data('glow', set.glow({color: set.attrs.stroke, opacity: 0.7}));
   }
 
   function onPointHoverOut() {
-    var glow = this.data('glow');
-    glow && glow.remove();
-    this.removeData('glow');
+    var
+      highlight = this.data('highlight'),
+      glow = this.data('glow');
+    if (!highlight) {
+      glow && glow.remove();
+      this.removeData('glow');
+    }
   }
 
   /**
@@ -2281,6 +2297,7 @@
       }
 
       set = plotr.canvas.setFinish();
+      set.hover = false;
 
       if (plotr.options.grid.hoverable) {
         hover = plotr.canvas.rect(
@@ -2305,6 +2322,8 @@
 
         strokeStyle && hover.data('stroke', strokeStyle.stroke);
         fillStyle && hover.data('fill', fillStyle);
+
+        return hover;
       }
     }
 
@@ -2312,9 +2331,10 @@
     barLeft = series.bars.align == 'left' ? 0 : -series.bars.barWidth / 2;
     barRight = barLeft + series.bars.barWidth;
 
+    series.el_ = [];
     for (pi = 0, pl = points.length; pi < pl; pi += pointSize) {
       if (points[pi] != null) {
-        drawBar(
+        series.el_.push(drawBar(
           points[pi], points[pi + 1],
           points[pi + 2],
           barLeft, barRight,
@@ -2322,7 +2342,7 @@
           series.bars.horizontal,
           series.bars.lineWidth,
           pi / pointSize
-        );
+        ));
       }
     }
   }
@@ -2338,7 +2358,7 @@
       radius = series.points.radius,
       highlightRadius = 2 * (radius + lineWidth/2),
       symbol = series.points.symbol,
-      pi, pl,
+      pi, pl, ei,
       width = lineWidth && shadowSize && shadowSize / 2,
       drawStyle = {
         'stroke-width': lineWidth,
@@ -2393,12 +2413,15 @@
         if (plotr.options.grid.autoHighlight) {
           hover.hover(onPointHoverIn, onPointHoverOut);
         }
+
+        return hover;
       }
 
     }
 
-    for (pi = 0, pl = points.length ; pi < pl; pi += pointSize) {
-      drawPoint(points[pi], points[pi + 1], radius, series.xaxis, series.yaxis, symbol, pi / pointSize);
+    series.el_ = [];
+    for (pi = 0, pl = points.length, ei = 0; pi < pl; pi += pointSize, ei++) {
+      series.el_.push(drawPoint(points[pi], points[pi + 1], radius, series.xaxis, series.yaxis, symbol, ei));
     }
   }
 
@@ -2525,9 +2548,9 @@
       processDatapoints: [],
       drawSeries: [],
       draw: [],
-      bindEvents: [],
-      drawOverlay: [],
-      shutdown: []
+      bindEvents: [],   // Not used, event binding is not done the same way as in Flot.
+      drawOverlay: [],  // Not used, there is no overlay
+      shutdown: []      // TODO: shutdown
     };
     this.plotOffset = {
       left: 0,
@@ -2550,7 +2573,6 @@
     this.setData(data_);
     this.setupGrid();
     this.draw();
-    this.bindEvents();
   }
 
   Plotr.prototype = {
@@ -2670,22 +2692,6 @@
         drawGrid(this);
         drawAxisLabels(this);
       }
-    },
-
-    bindEvents: function () {
-/*
-      // bind events
-      if (options.grid.hoverable) {
-        eventHolder.mousemove(onMouseMove);
-        eventHolder.mouseleave(onMouseLeave);
-      }
-
-      if (options.grid.clickable) {
-        eventHolder.click(onClick);
-      }
-
-      executeHooks(hooks.bindEvents, [eventHolder]);
-*/
     },
 
     initPlugins: function (plugins) {
@@ -2906,7 +2912,66 @@
     getYAxes: function () { return this.yAxes; },
     getOptions: function () { return this.options; },
 
-    __dbgend: 0
+    highlight: function (series, point, auto) {
+      var e;
+      if (!series.el_) { return; }
+
+      if (typeof series === 'number') {
+        series = this.series[series];
+      }
+
+      if (typeof point == 'number') {
+        e = series.el_[point];
+      } else {
+        throw 'not supported'; //TODO: Get point corresponding to data
+      }
+
+      !auto && e.data('highlight', true);
+      if (series.bars.show) {
+        onBarHoverIn.apply(e);
+      }
+      if (series.points.show) {
+        onPointHoverIn.apply(e);
+      }
+    },
+    unhighlight: function (series, point) {
+      var e;
+      if (!series.el_) { return; }
+
+      if (typeof series === 'number') {
+        series = this.series[series];
+      }
+
+      if (typeof point == 'number') {
+        e = series.el_[point];
+      } else {
+        throw 'not supported'; //TODO: Get point corresponding to data
+      }
+
+      e.removeData('highlight');
+      if (series.bars.show) {
+        onBarHoverOut.apply(e);
+      }
+      if (series.points.show) {
+        onPointHoverOut.apply(e);
+      }
+    },
+    highlighted: function (series, point) {
+      var e;
+      if (!series.el_) { return false; }
+
+      if (typeof series === 'number') {
+        series = this.series[series];
+      }
+
+      if (typeof point == 'number') {
+        e = series.el_[point];
+      } else {
+        throw 'not supported'; //TODO: Get point corresponding to data
+      }
+
+      return e && !!e.data('highlight');
+    }
   };
 
   //TODO: Make placeholder declaration compatible with flot
