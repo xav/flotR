@@ -1,12 +1,12 @@
-/*! Javascript plotting library for Raphael v. 0.7.
+/**
+ * @preserve Javascript plotting library for Raphael v. 0.1.
  *
- * Released under the MIT license by Xavier Basty, March 2012.
+ * Released under the MIT license by Xavier Basty / digitalanimal.se, March 2012.
  *
  * Based on the flot plotting library (http://code.google.com/p/flot/)
  * Color management based on jquery.colorhelpers by Ole Laursen
  *
  */
-
 (function ($, undefined) {
   "use strict";
   var R = Raphael;
