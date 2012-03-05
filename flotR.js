@@ -229,7 +229,7 @@
     return axes[number];
   }
 
-  function onHoverIn() {
+  function onBarHoverIn() {
     var
       set = this.data('set'),
       fill,
@@ -243,7 +243,7 @@
     }
   }
 
-  function onHoverOut() {
+  function onBarHoverOut() {
     var
       set = this.data('set'),
       fill,
@@ -256,6 +256,17 @@
       }
     }
  }
+
+  function onPointHoverIn() {
+    var set = this.data('set');
+    this.data('glow', set.glow({color: set.attrs.stroke, opacity: 0.7}));
+  }
+
+  function onPointHoverOut() {
+    var glow = this.data('glow');
+    glow && glow.remove();
+    this.data('glow', null);
+  }
 
   function onClick() {
     console.debug(this);
@@ -2097,131 +2108,6 @@
     }
   }
 
-  function drawBar(plotr, x, y, b, barLeft, barRight, offset, fillStyle, strokeStyle, axisX, axisY, horizontal, lineWidth, transform) {
-    var
-      left, right, bottom, top,
-      drawLeft, drawRight, drawTop, drawBottom,
-      path, set,
-      hover,
-      tmp;
-
-    // In horizontal mode, we start the bar from the left instead of from the bottom so it appears to be
-    // horizontal rather than vertical
-    if (horizontal) {
-      drawBottom = drawRight = drawTop = true;
-      drawLeft = false;
-      left = b;
-      right = x;
-      top = y + barLeft;
-      bottom = y + barRight;
-
-      // Account for negative bars
-      if (right < left) {
-        tmp = right;
-        right = left;
-        left = tmp;
-        drawLeft = true;
-        drawRight = false;
-      }
-    } else {
-      drawLeft = drawRight = drawTop = true;
-      drawBottom = false;
-      left = x + barLeft;
-      right = x + barRight;
-      bottom = b;
-      top = y;
-
-      // Account for negative bars
-      if (top < bottom) {
-        tmp = top;
-        top = bottom;
-        bottom = tmp;
-        drawBottom = true;
-        drawTop = false;
-      }
-    }
-
-    // clip
-    if (right < axisX.min || left > axisX.max || top < axisY.min || bottom > axisY.max) {
-      return;
-    }
-
-    if (left < axisX.min) {
-      left = axisX.min;
-      drawLeft = false;
-    }
-    if (right > axisX.max) {
-      right = axisX.max;
-      drawRight = false;
-    }
-    if (bottom < axisY.min) {
-      bottom = axisY.min;
-      drawBottom = false;
-    }
-    if (top > axisY.max) {
-      top = axisY.max;
-      drawTop = false;
-    }
-
-    left = axisX.p2c(left);
-    bottom = axisY.p2c(bottom);
-    right = axisX.p2c(right);
-    top = axisY.p2c(top);
-
-    plotr.canvas.setStart();
-
-    // Fill the bar
-    if (fillStyle) {
-      path = [
-        'M', left, ' ', bottom,
-        'L', left, ' ', top,
-        'L', right, ' ', top,
-        'L', right, ' ', bottom
-      ];
-      plotr.canvas
-        .path(path.join(''))
-        .transform(transform)
-        .attr({fill: fillStyle});
-    }
-
-    // draw outline
-    if (lineWidth > 0 && (drawLeft || drawRight || drawTop || drawBottom)) {
-      path = [
-        'M', left, ' ', bottom + offset,
-        drawLeft ? 'L' : 'M', left, ' ', top + offset,
-        drawTop ? 'L' : 'M', right, ' ', top + offset,
-        drawRight ? 'L' : 'M', right, ' ', bottom + offset,
-        drawBottom ? 'L' : 'M', left, ' ', bottom + offset
-      ];
-
-      plotr.canvas
-        .path(path.join(''))
-        .transform(transform)
-        .attr(strokeStyle);
-    }
-
-    set = plotr.canvas.setFinish();
-
-    if (plotr.options.grid.hoverable) {
-      hover = plotr.canvas.rect(
-        left - (drawLeft ? lineWidth/2 : 0),
-        top - (drawTop ? lineWidth/2 : 0),
-        right - left + (drawRight || drawLeft ? lineWidth : 0),
-        bottom - top + (drawBottom || drawTop ? lineWidth : 0)
-      );
-
-      hover
-        .transform(transform)
-        .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
-        .data('set', set)
-        .hover(onHoverIn, onHoverOut)
-        .click(onClick);
-
-      strokeStyle && hover.data('stroke', strokeStyle.stroke);
-      fillStyle && hover.data('fill', fillStyle);
-    }
-  }
-
   function drawSeriesBars(plotr, series) {
     var
       datapoints = series.datapoints,
@@ -2236,6 +2122,130 @@
         'stroke': series.color
       };
 
+    function drawBar(x, y, b, barLeft, barRight, axisX, axisY, horizontal, lineWidth) {
+      var
+        left, right, bottom, top,
+        drawLeft, drawRight, drawTop, drawBottom,
+        path, set,
+        hover,
+        tmp;
+
+      // In horizontal mode, we start the bar from the left instead of from the bottom so it appears to be
+      // horizontal rather than vertical
+      if (horizontal) {
+        drawBottom = drawRight = drawTop = true;
+        drawLeft = false;
+        left = b;
+        right = x;
+        top = y + barLeft;
+        bottom = y + barRight;
+
+        // Account for negative bars
+        if (right < left) {
+          tmp = right;
+          right = left;
+          left = tmp;
+          drawLeft = true;
+          drawRight = false;
+        }
+      } else {
+        drawLeft = drawRight = drawTop = true;
+        drawBottom = false;
+        left = x + barLeft;
+        right = x + barRight;
+        bottom = b;
+        top = y;
+
+        // Account for negative bars
+        if (top < bottom) {
+          tmp = top;
+          top = bottom;
+          bottom = tmp;
+          drawBottom = true;
+          drawTop = false;
+        }
+      }
+
+      // clip
+      if (right < axisX.min || left > axisX.max || top < axisY.min || bottom > axisY.max) {
+        return;
+      }
+
+      if (left < axisX.min) {
+        left = axisX.min;
+        drawLeft = false;
+      }
+      if (right > axisX.max) {
+        right = axisX.max;
+        drawRight = false;
+      }
+      if (bottom < axisY.min) {
+        bottom = axisY.min;
+        drawBottom = false;
+      }
+      if (top > axisY.max) {
+        top = axisY.max;
+        drawTop = false;
+      }
+
+      left = axisX.p2c(left);
+      bottom = axisY.p2c(bottom);
+      right = axisX.p2c(right);
+      top = axisY.p2c(top);
+
+      plotr.canvas.setStart();
+
+      // Fill the bar
+      if (fillStyle) {
+        path = [
+          'M', left, ' ', bottom,
+          'L', left, ' ', top,
+          'L', right, ' ', top,
+          'L', right, ' ', bottom
+        ];
+        plotr.canvas
+          .path(path.join(''))
+          .transform(transform)
+          .attr({fill: fillStyle});
+      }
+
+      // draw outline
+      if (lineWidth > 0 && (drawLeft || drawRight || drawTop || drawBottom)) {
+        path = [
+          'M', left, ' ', bottom,
+          drawLeft ? 'L' : 'M', left, ' ', top,
+          drawTop ? 'L' : 'M', right, ' ', top,
+          drawRight ? 'L' : 'M', right, ' ', bottom,
+          drawBottom ? 'L' : 'M', left, ' ', bottom
+        ];
+
+        plotr.canvas
+          .path(path.join(''))
+          .transform(transform)
+          .attr(strokeStyle);
+      }
+
+      set = plotr.canvas.setFinish();
+
+      if (plotr.options.grid.hoverable) {
+        hover = plotr.canvas.rect(
+          left - (drawLeft ? lineWidth/2 : 0),
+          top - (drawTop ? lineWidth/2 : 0),
+          right - left + (drawRight || drawLeft ? lineWidth : 0),
+          bottom - top + (drawBottom || drawTop ? lineWidth : 0)
+        );
+
+        hover
+          .transform(transform)
+          .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
+          .data('set', set)
+          .hover(onBarHoverIn, onBarHoverOut)
+          .click(onClick);
+
+        strokeStyle && hover.data('stroke', strokeStyle.stroke);
+        fillStyle && hover.data('fill', fillStyle);
+      }
+    }
 
     // FIXME: figure out a way to add shadows (for instance along the right edge)
     barLeft = series.bars.align == 'left' ? 0 : -series.bars.barWidth / 2;
@@ -2244,16 +2254,12 @@
     for (pi = 0, pl = points.length; pi < pl; pi += pointSize) {
       if (points[pi] != null) {
         drawBar(
-          plotr,
           points[pi], points[pi + 1],
           points[pi + 2],
           barLeft, barRight,
-          0,
-          fillStyle, strokeStyle,
           series.xaxis, series.yaxis,
           series.bars.horizontal,
-          series.bars.lineWidth,
-          transform
+          series.bars.lineWidth
         );
       }
     }
@@ -2261,99 +2267,70 @@
 
   function drawSeriesPoints(plotr, series) {
     var
+      canvas = plotr.canvas,
+      points = series.datapoints.points,
+      pointSize = series.datapoints.pointsize,
       lineWidth = series.points.lineWidth,
       shadowSize = series.shadowSize,
       radius = series.points.radius,
+      highlightRadius = 2 * (radius + lineWidth/2),
       symbol = series.points.symbol,
-      width,
+      pi, pl,
+      width = lineWidth && shadowSize && shadowSize / 2,
       drawStyle = {
-        'stroke-width': series.bars.lineWidth,
-        'stroke': series.color
+        'stroke-width': lineWidth,
+        'stroke': series.color,
+        'fill': getFillStyle(series.points, series.color)
+      },
+      shadowStyle = {
+        'stroke-width': width,
+        'stroke': 'rgba(0,0,0,0.1)'
       },
       transform = 't' + plotr.plotOffset.left + ',' + plotr.plotOffset.top;
 
-    function plotPoints(canvas, datapoints, radius, drawStyle, offset, shadow, axisX, axisY, symbol) {
-      var
-        points = datapoints.points,
-        pointSize = datapoints.pointsize,
-        pi, pl,
-        x, y,
-        element;
-
-      for (pi = 0, pl = points.length ; pi < pl; pi += pointSize) {
-        x = points[pi];
-        y = points[pi + 1];
-
-        if (x == null || x < axisX.min || x > axisX.max || y < axisY.min || y > axisY.max) {
-          continue;
-        }
-
-        x = axisX.p2c(x);
-        y = axisY.p2c(y) + offset;
-
-        if (symbol == 'circle') {
-          element = shadow
-            ? canvas.path(arc(x, y, 0, 180, radius))
-            : canvas.circle(x, y, radius);
-        } else {
-          element = canvas.path(symbol(x, y, radius, shadow));
-        }
-
-        element
-          .transform(transform)
-          .attr(drawStyle);
+    function drawPoint(x, y, radius, axisX, axisY, symbol) {
+      var set, hover;
+      if (x == null || y == null || x < axisX.min || x > axisX.max || y < axisY.min || y > axisY.max) {
+        return;
       }
+
+      x = axisX.p2c(x);
+      y = axisY.p2c(y);
+
+      canvas.setStart();
+
+      if (symbol == 'circle') {
+        if (width) {
+          canvas.path(arc(x, y + width + width / 2, 0, 180, radius)).attr(shadowStyle);
+          canvas.path(arc(x, y + width / 2, 0, 180, radius)).attr(shadowStyle);
+        }
+        set = canvas.circle(x, y, radius).attr(drawStyle);
+      } else {
+        if (width) {
+          canvas.path(symbol(x, y + width + width / 2, radius, true)).attr(shadowStyle);
+          canvas.path(symbol(x, y + width / 2, radius, true)).attr(shadowStyle);
+        }
+        set = canvas.path(symbol(x, y, radius, false)).attr(drawStyle);
+      }
+      canvas.setFinish().transform(transform);
+
+      if (plotr.options.grid.hoverable) {
+        hover = symbol == 'circle'
+          ? canvas.circle(x, y, highlightRadius)
+          : canvas.path(symbol(x, y, highlightRadius, false));
+        hover
+          .transform(transform)
+          .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
+          .data('set', set)
+          .hover(onPointHoverIn, onPointHoverOut)
+          .click(onClick);
+      }
+
     }
 
-    if (lineWidth > 0 && shadowSize > 0) {
-      // draw shadow in two steps
-      width = shadowSize / 2;
-
-      drawStyle = {
-        'stroke-width': width,
-        'stroke': 'rgba(0,0,0,0.1)'
-      };
-
-      plotPoints(
-        plotr.canvas,
-        series.datapoints,
-        radius,
-        drawStyle,
-        width + width / 2,
-        true,
-        series.xaxis, series.yaxis,
-        symbol
-      );
-
-      drawStyle.stroke = 'rgba(0,0,0,0.2)';
-      plotPoints(
-        plotr.canvas,
-        series.datapoints,
-        radius,
-        drawStyle,
-        width / 2,
-        true,
-        series.xaxis, series.yaxis,
-        symbol
-      );
+    for (pi = 0, pl = points.length ; pi < pl; pi += pointSize) {
+      drawPoint(points[pi], points[pi + 1], radius, series.xaxis, series.yaxis, symbol);
     }
-
-    drawStyle = {
-      'stroke-width': lineWidth,
-      'stroke': series.color,
-      'fill': getFillStyle(series.points, series.color)
-    };
-
-    plotPoints(
-      plotr.canvas,
-      series.datapoints,
-      radius,
-      drawStyle,
-      0,
-      false,
-      series.xaxis, series.yaxis,
-      symbol
-    );
   }
 
   function drawSeries(plotr, series) {
