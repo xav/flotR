@@ -229,6 +229,47 @@
     return axes[number];
   }
 
+  function onMouseMove(e, x, y) {
+    var
+      plotr = this.data('plotr'),
+      data = this.data('item'),
+      offset = plotr.placeholder.offset(),
+      pos,
+      series,
+      dataPoints,
+      pi, pl, point,
+      item = null;
+
+    if (!plotr) {
+      return;
+    }
+
+    if (data) {
+      series = plotr.series[data.seriesIndex];
+      dataPoints = series.datapoints;
+      point = [];
+      for (pi = data.dataIndex * dataPoints.pointsize, pl = pi + dataPoints.pointsize; pi < pl; pi++) {
+        point.push(dataPoints.points[pi]);
+      }
+
+      item = {
+        seriesIndex: data.seriesIndex,
+        series: series,
+        dataIndex: data.dataIndex,
+        datapoint: point,
+        pageX: x,
+        pageY: y
+      };
+    }
+
+
+    x = x - offset.left - plotr.plotOffset.left;
+    y = y - offset.top - plotr.plotOffset.top;
+
+    pos = plotr.canvasToAxisCoords({ left: x, top: y });
+    plotr.placeholder.trigger('plothover', [pos, item]);
+  }
+
   function onBarHoverIn() {
     var
       set = this.data('set'),
@@ -265,7 +306,7 @@
   function onPointHoverOut() {
     var glow = this.data('glow');
     glow && glow.remove();
-    this.data('glow', null);
+    this.removeData('glow');
   }
 
   function onClick() {
@@ -1443,6 +1484,9 @@
     if (typeof spec == "string") {
       return spec;
     }
+    if (!spec) {
+      return defaultColor;
+    }
 
     var
       ci, cl,
@@ -1540,12 +1584,20 @@
   }
 
   function drawBackground(plotr) {
-    var fillStyle = getColorOrGradient(plotr.options.grid.backgroundColor, 'rgba(255, 255, 255, 0)');
+    var
+      bg,
+      fillStyle = getColorOrGradient(plotr.options.grid.backgroundColor, 'rgba(255, 255, 255, 0)');
     //TODO: reuse background element.
 
-    return plotr.canvas
+    bg = plotr.canvas
       .rect(plotr.plotOffset.left, plotr.plotOffset.top, plotr.plotWidth, plotr.plotHeight)
       .attr({fill: fillStyle, stroke: null});
+
+    if (plotr.options.grid.hoverable) {
+      bg
+        .data('plotr', plotr)
+        .mousemove(onMouseMove);
+    }
   }
 
   function drawGrid(plotr) {
@@ -1560,7 +1612,7 @@
       x, y, xOff, yOff,
       xRange, yRange,
       borderWidth,
-      path,
+      path, grid,
       transform = 't' + plotr.plotOffset.left + ',' + plotr.plotOffset.top,
       color;
 
@@ -1687,7 +1739,6 @@
           'M', x, ',', y,
           'L', x + xOff, ',', y + yOff
         ].join('');
-
         plotr.canvas
           .path(path)
           .transform(transform)
@@ -1735,12 +1786,17 @@
         );
       }
       path = path.join('');
-      plotr.canvas
+      grid = plotr.canvas
         .path(path)
         .transform(transform)
         .attr({
           'stroke': color
         });
+      if (plotr.options.grid.hoverable) {
+        grid
+          .data('plotr', plotr)
+          .mousemove(onMouseMove);
+      }
     }
 
 
@@ -1819,8 +1875,9 @@
     }
   }
 
-  function drawSeriesLines(plotr, series) {
+  function drawSeriesLines(plotr, seriesIndex) {
     var
+      series = plotr.series[seriesIndex],
       lineWidth = series.lines.lineWidth,
       shadowSize = series.shadowSize,
       angle,
@@ -2108,8 +2165,9 @@
     }
   }
 
-  function drawSeriesBars(plotr, series) {
+  function drawSeriesBars(plotr, seriesIndex) {
     var
+      series = plotr.series[seriesIndex],
       datapoints = series.datapoints,
       points = datapoints.points,
       pointSize = datapoints.pointsize,
@@ -2122,7 +2180,7 @@
         'stroke': series.color
       };
 
-    function drawBar(x, y, b, barLeft, barRight, axisX, axisY, horizontal, lineWidth) {
+    function drawBar(x, y, b, barLeft, barRight, axisX, axisY, horizontal, lineWidth, dataIndex) {
       var
         left, right, bottom, top,
         drawLeft, drawRight, drawTop, drawBottom,
@@ -2238,9 +2296,15 @@
         hover
           .transform(transform)
           .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
+          .data('plotr', plotr)
+          .data('item', {seriesIndex: seriesIndex, dataIndex: dataIndex})
           .data('set', set)
-          .hover(onBarHoverIn, onBarHoverOut)
+          .mousemove(onMouseMove)
           .click(onClick);
+
+        if (plotr.options.grid.autoHighlight) {
+          hover.hover(onBarHoverIn, onBarHoverOut);
+        }
 
         strokeStyle && hover.data('stroke', strokeStyle.stroke);
         fillStyle && hover.data('fill', fillStyle);
@@ -2259,14 +2323,16 @@
           barLeft, barRight,
           series.xaxis, series.yaxis,
           series.bars.horizontal,
-          series.bars.lineWidth
+          series.bars.lineWidth,
+          pi / pointSize
         );
       }
     }
   }
 
-  function drawSeriesPoints(plotr, series) {
+  function drawSeriesPoints(plotr, seriesIndex) {
     var
+      series = plotr.series[seriesIndex],
       canvas = plotr.canvas,
       points = series.datapoints.points,
       pointSize = series.datapoints.pointsize,
@@ -2288,7 +2354,7 @@
       },
       transform = 't' + plotr.plotOffset.left + ',' + plotr.plotOffset.top;
 
-    function drawPoint(x, y, radius, axisX, axisY, symbol) {
+    function drawPoint(x, y, radius, axisX, axisY, symbol, dataIndex) {
       var set, hover;
       if (x == null || y == null || x < axisX.min || x > axisX.max || y < axisY.min || y > axisY.max) {
         return;
@@ -2321,27 +2387,35 @@
         hover
           .transform(transform)
           .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
+          .data('plotr', plotr)
+          .data('item', {seriesIndex: seriesIndex, dataIndex: dataIndex})
           .data('set', set)
-          .hover(onPointHoverIn, onPointHoverOut)
+          .mousemove(onMouseMove)
           .click(onClick);
+
+        if (plotr.options.grid.autoHighlight) {
+          hover.hover(onPointHoverIn, onPointHoverOut);
+        }
       }
 
     }
 
     for (pi = 0, pl = points.length ; pi < pl; pi += pointSize) {
-      drawPoint(points[pi], points[pi + 1], radius, series.xaxis, series.yaxis, symbol);
+      drawPoint(points[pi], points[pi + 1], radius, series.xaxis, series.yaxis, symbol, pi / pointSize);
     }
   }
 
-  function drawSeries(plotr, series) {
+  function drawSeries(plotr, seriesIndex) {
+    var series = plotr.series[seriesIndex];
+    //TODO: Use options.grid.mouseActiveRadius for hover elements
     if (series.lines.show) {
-      drawSeriesLines(plotr, series);
+      drawSeriesLines(plotr, seriesIndex);
     }
     if (series.bars.show) {
-      drawSeriesBars(plotr, series);
+      drawSeriesBars(plotr, seriesIndex);
     }
     if (series.points.show) {
-      drawSeriesPoints(plotr, series);
+      drawSeriesPoints(plotr, seriesIndex);
     }
   }
 
@@ -2580,9 +2654,9 @@
       canvas.clear();
 
       // draw background, if any
-      if (grid.show && grid.backgroundColor) {
+      //if (grid.show && grid.backgroundColor) {
         drawBackground(this);
-      }
+      //}
 
       if (grid.show && !grid.aboveData) {
         drawGrid(this);
@@ -2590,8 +2664,8 @@
       }
 
       for (i = 0, sl = series.length; i < sl; ++i) {
-        executeHooks(this, this.hooks.drawSeries, [canvas, series[i]]);
-        drawSeries(this, series[i]);
+        executeHooks(this, this.hooks.drawSeries, [canvas, series[i], i]);
+        drawSeries(this, i);
       }
 
       executeHooks(this, this.hooks.draw, [canvas]);
@@ -2768,7 +2842,7 @@
       for (ai = 0, al = this.yAxes.length; ai < al; ++ai) {
         axis = this.yAxes[ai];
         if (axis && axis.used) {
-          res["y" + axis.n] = axis.c2p(pos.top);
+          res['y' + axis.n] = axis.c2p(pos.top);
         }
       }
 
