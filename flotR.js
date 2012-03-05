@@ -229,7 +229,7 @@
     return axes[number];
   }
 
-  function onMouseMove(e, x, y) {
+  function triggerClickHoverEvent(e, x, y) {
     var
       plotr = this.data('plotr'),
       data = this.data('item'),
@@ -267,7 +267,7 @@
     y = y - offset.top - plotr.plotOffset.top;
 
     pos = plotr.canvasToAxisCoords({ left: x, top: y });
-    plotr.placeholder.trigger('plothover', [pos, item]);
+    plotr.placeholder.trigger(e, [pos, item]);
   }
 
   function onBarHoverIn() {
@@ -307,10 +307,6 @@
     var glow = this.data('glow');
     glow && glow.remove();
     this.removeData('glow');
-  }
-
-  function onClick() {
-    console.debug(this);
   }
 
   /**
@@ -1596,7 +1592,8 @@
     if (plotr.options.grid.hoverable) {
       bg
         .data('plotr', plotr)
-        .mousemove(onMouseMove);
+        .mousemove(function (e, x, y) {triggerClickHoverEvent.call(this, 'plothover', x, y);})
+        .click(function (e, x, y) {triggerClickHoverEvent.call(this, 'plotclick', x, y);});
     }
   }
 
@@ -1795,7 +1792,7 @@
       if (plotr.options.grid.hoverable) {
         grid
           .data('plotr', plotr)
-          .mousemove(onMouseMove);
+          .mousemove(triggerClickHoverEvent);
       }
     }
 
@@ -2299,8 +2296,8 @@
           .data('plotr', plotr)
           .data('item', {seriesIndex: seriesIndex, dataIndex: dataIndex})
           .data('set', set)
-          .mousemove(onMouseMove)
-          .click(onClick);
+          .mousemove(function (e, x, y) {triggerClickHoverEvent.call(this, 'plothover', x, y);})
+          .click(function (e, x, y) {triggerClickHoverEvent.call(this, 'plotclick', x, y);});
 
         if (plotr.options.grid.autoHighlight) {
           hover.hover(onBarHoverIn, onBarHoverOut);
@@ -2390,8 +2387,8 @@
           .data('plotr', plotr)
           .data('item', {seriesIndex: seriesIndex, dataIndex: dataIndex})
           .data('set', set)
-          .mousemove(onMouseMove)
-          .click(onClick);
+          .mousemove(function (e, x, y) {triggerClickHoverEvent.call(this, 'plothover', x, y);})
+          .click(function (e, x, y) {triggerClickHoverEvent.call(this, 'plotclick', x, y);});
 
         if (plotr.options.grid.autoHighlight) {
           hover.hover(onPointHoverIn, onPointHoverOut);
@@ -2418,7 +2415,6 @@
       drawSeriesPoints(plotr, seriesIndex);
     }
   }
-
 
   function Plotr(placeholder, data_, options_, plugins) {
     this.placeholder = null;
