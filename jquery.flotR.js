@@ -1600,7 +1600,7 @@
     var
       bg,
       fillStyle = getColorOrGradient(plotr.options.grid.backgroundColor, 'rgba(255, 255, 255, 0)');
-    //TODO: reuse background element.
+    //TODO: reuse background element?
 
     bg = plotr.canvas
       .rect(plotr.plotOffset.left, plotr.plotOffset.top, plotr.plotWidth, plotr.plotHeight)
@@ -2440,7 +2440,7 @@
     }
   }
 
-  function Plotr(placeholder, data_, options_, plugins) {
+  function Plotr(placeholder, data, options, plugins) {
     this.placeholder = null;
     this.series = [];
     this.options = {
@@ -2569,9 +2569,9 @@
 
       // Initialize
     this.initPlugins(plugins);
-    this.parseOptions(options_);
+    this.parseOptions(options);
     this.setupCanvas(placeholder);
-    this.setData(data_);
+    this.setData(data);
     this.setupGrid();
     this.draw();
   }
@@ -2982,6 +2982,9 @@
 
   $.plotr.version = '0.1';
   $.plotr.plugins = [];
+
+  $.plotr._plot = $.plotr;
+  $.plot = $.plotr;
 
   /**
    * Returns a string with the date d formatted according to fmt
