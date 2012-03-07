@@ -506,7 +506,7 @@
       axis, ai, al,
 
       s, si,
-      sl = series.length,
+      sl,
       di, dl,
       pi,
       dpi,
@@ -541,7 +541,7 @@
       axis.used = false;
     }
 
-    for (si = 0; si < sl; si++) {
+    for (si = 0, sl = series.length; si < sl; si++) {
       s = series[si];
       s.datapoints = { points: [] };
 
@@ -549,7 +549,7 @@
     }
 
     // First pass: clean and copy data
-    for (si = 0; si < sl; si++) {
+    for (si = 0, sl = series.length; si < sl; si++) {
       s = series[si];
 
       data = s.data;
@@ -658,13 +658,13 @@
     }
 
     // Give the hooks a chance to run
-    for (si = 0; si < sl; si++) {
+    for (si = 0, sl = series.length; si < sl; si++) {
       s = series[si];
-      executeHooks(plotr, hooks.processDatapoints, [ s, s.datapoints]);
+      executeHooks(plotr, hooks.processDatapoints, [s, s.datapoints]);
     }
 
     // Second pass: find datamax/datamin for auto-scaling
-    for (si = 0; si < sl; ++si) {
+    for (si = 0, sl = series.length; si < sl; ++si) {
       s = series[si];
       points = s.datapoints.points;
       pointSize = s.datapoints.pointsize;
