@@ -344,6 +344,7 @@
 
   function executeHooks(plotr, hooks, args) {
     var i, l;
+    args = [plotr].concat(args);
     for (i = 0, l = hooks.length; i < l; ++i) {
       hooks[i].apply(plotr, args);
     }
