@@ -1599,12 +1599,15 @@
   function drawBackground(plotr) {
     var
       bg,
-      fillStyle = getColorOrGradient(plotr.options.grid.backgroundColor, 'rgba(255, 255, 255, 0)');
+      fillStyle = getColorOrGradient(plotr.options.grid.backgroundColor, null);
     //TODO: reuse background element?
 
     bg = plotr.canvas
       .rect(plotr.plotOffset.left, plotr.plotOffset.top, plotr.plotWidth, plotr.plotHeight)
       .attr({fill: fillStyle, stroke: null});
+    if (fillStyle == null) {
+      bg.attr({opacity: 0});
+    }
 
     if (plotr.options.grid.hoverable) {
       bg
@@ -1628,7 +1631,9 @@
       borderWidth,
       path, grid,
       transform = 't' + plotr.plotOffset.left + ',' + plotr.plotOffset.top,
-      color;
+      color, opacity;
+
+    var consoled = false;
 
     // draw markings
     if (markings) {
@@ -1736,6 +1741,7 @@
       }
 
       color = axis.options.tickColor || Color.parse(axis.options.color).scale('a', 0.22).toString();
+      opacity = Color.parse(color).a;
 
       // Draw tick bar
       if (!axis.innermost) {
@@ -1757,7 +1763,8 @@
           .path(path)
           .transform(transform)
           .attr({
-            'stroke': color
+            stroke: color,
+            opacity: opacity
           });
       }
 
@@ -1804,7 +1811,8 @@
         .path(path)
         .transform(transform)
         .attr({
-          'stroke': color
+          stroke: color,
+          opacity: opacity
         });
       if (plotr.options.grid.hoverable) {
         grid
@@ -2310,7 +2318,7 @@
 
         hover
           .transform(transform)
-          .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
+          .attr({stroke: null, opacity: 0})
           .data('plotr', plotr)
           .data('item', {seriesIndex: seriesIndex, dataIndex: dataIndex})
           .data('set', set)
@@ -2404,7 +2412,7 @@
           : canvas.path(symbol(x, y, highlightRadius, false));
         hover
           .transform(transform)
-          .attr({stroke: null, fill: 'rgba(255, 255, 255, 0)'})
+          .attr({stroke: null, opacity: 0})
           .data('plotr', plotr)
           .data('item', {seriesIndex: seriesIndex, dataIndex: dataIndex})
           .data('set', set)
